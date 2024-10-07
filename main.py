@@ -5,13 +5,14 @@ import smtplib
 import schedule
 from interfaces import BusRequest, StopTimeRequest, Cliente, Datas, DistanceMatrix
 from pydantic import BaseModel
-from tasks import fetch_bus_positions, send_email_notification
 from typing import List
 import requests
 import mysql.connector
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from functools import reduce
+from tasks import send_one_email
+import threading
 
 app = FastAPI()
 
@@ -28,6 +29,8 @@ app.add_middleware(
     allow_headers=["*"],  # Permite todos os headers
 )
 
+taskEmail = "Erro ao colocar a task na fila"
+
 
 # Define a conexão com o banco MySQL
 def get_db_connection():
@@ -35,24 +38,6 @@ def get_db_connection():
         host="localhost", user="user", password="password", database="banco"
     )
     return connection
-
-
-# Manda o email
-def mandar_notificacao(reciver):
-    print(reciver)
-    sender_email = os.environ['MY_EMAIL']
-    password = os.environ["PASSWORD"]
-
-    with smtplib.SMTP("smtp.gmail.com", 587) as connection:
-        connection.starttls()
-        connection.login(user=sender_email, password=password)
-        connection.sendmail(
-            from_addr=sender_email,
-            to_addrs=reciver,
-            msg="Subject:Informacoes sobre sua linha!\n\nO onibus esta a 10 minutos do seu ponto.",
-        )
-
-        schedule.every(1).minutes.do(mandar_notificacao)
 
 
 # Retorna as informações de um ponto de ônibus
@@ -82,10 +67,7 @@ def get_bus_data(data: Datas = None):
 
         params = f"?dataInicial={data_inicio}&dataFinal={data_fim}"
 
-    # print(params)
-
     url = f"https://dados.mobilidade.rio/gps/sppo{params}"
-    # print(url)
     response = requests.get(url)
     if response.status_code == 200:
         bus_positions = (
@@ -97,17 +79,12 @@ def get_bus_data(data: Datas = None):
 
 
 def loop():
-    print("###")
     banco = getbanco()
 
+    # cria um set de pontos para consultar apenas uma vez cada ponto
     pontos = set()
-    linhas = set()
     for sub_array in banco:
-        linhas.add(sub_array[2])
         pontos.add(sub_array[3])
-
-    print(linhas)
-    print(pontos)
 
     pontosInfo = []  # informalção de todos os pontos
     for id in pontos:
@@ -115,27 +92,20 @@ def loop():
         ponto = get_stops(pontoRequest)
         pontosInfo.append(ponto[0])
 
-    print(pontosInfo)
-    print(len(pontosInfo))
-
-    todosOnibus = get_bus_data()
-    onibusFiltrados = []
-    for onibus in todosOnibus:
-        if onibus["linha"] in linhas:
-            onibusFiltrados.append(onibus)
-
-    # print(onibusFiltrados)
-    # print(len(onibusFiltrados))
-
-    onibusUnicos = get_latest_items(onibusFiltrados)
-    print(onibusUnicos)
-    print(len(onibusUnicos))
-    onibusUnicos = onibusUnicos[:10]
-    print(onibusUnicos)
-    print(len(onibusUnicos))
-    
     for user in banco:
-        print(user)
+        todosOnibus = []
+
+        data = Datas(dataInicio=user[4], dataFim=user[5])
+        todosOnibus = get_bus_data(data)
+        onibusFiltrados = []
+        for onibus in todosOnibus:
+            if onibus["linha"] == user[2]:
+                onibusFiltrados.append(onibus)
+
+        onibusUnicos = []
+        onibusUnicos = get_latest_items(onibusFiltrados)
+        # limita a 25 ônibus, devido ao limite da API do Google
+        onibusUnicos = onibusUnicos[:25]
 
         origins = ""
         for index, element in enumerate(onibusUnicos):
@@ -145,16 +115,17 @@ def loop():
                 origins += "|"
             origins += f"{lat},{long}"
 
-        destinations = f"{pontosInfo[0]['stop_lat']},{pontosInfo[0]['stop_lon']}"
+        # seleciona apenas o ponto referente ao usuário dentro do set de pontos
+        pontoAtual = next(
+            (item for item in pontosInfo if item["stop_id"] == user[3]), None
+        )
 
-        print("$$$")
-        print(origins)
-        print(destinations)
+        destinations = f"{pontoAtual['stop_lat']},{pontoAtual['stop_lon']}"
 
-        distanceMatrixRequest = DistanceMatrix(destinations=destinations, origins=origins)
+        distanceMatrixRequest = DistanceMatrix(
+            destinations=destinations, origins=origins
+        )
         responseDistance = get_distance(distanceMatrixRequest)
-        print(responseDistance)
-        print(responseDistance["rows"])
 
         # verifica se está a menos de 600s (10 min)
         exceeds_600 = any(
@@ -162,12 +133,18 @@ def loop():
             for item in responseDistance["rows"]
         )
 
-        print(exceeds_600)
-
         if exceeds_600:
-            mandar_notificacao("email")
+            enqueue_email_task(user[1])
 
     return {"banco": "sucesso"}
+
+
+# adiciona uma task de email a fila
+def enqueue_email_task(email):
+    global taskEmail
+    taskEmail = send_one_email.delay(email)  # Coloca a tarefa na fila
+    print(taskEmail)
+    return {"task_id": taskEmail.id}
 
 
 # retorna apenas a informação mais recente de GPS de cada carro
@@ -198,7 +175,7 @@ def getbanco():
     return resultados
 
 
-# consulta a API do Google pra saber o tempo que o onibus vai demorar pra chegar
+# consulta a API do Google para saber o tempo que o ônibus vai demorar pra chegar
 @app.post("/distance")
 def get_distance(data: DistanceMatrix):
     key = os.environ["KEY_MAPS"]
@@ -239,11 +216,20 @@ def create_cliente(cliente: Cliente):
     }
 
 
-# Agendar o método para ser executado a cada 1 minuto
-# loop()
-# schedule.every(60).seconds.do(loop)
+# Função para rodar o schedule em uma thread separada
+def rodar_agendamento():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)  # Delay para evitar o uso excessivo da CPU
 
-# # Loop para manter o agendamento rodando
-# while True:
-#     schedule.run_pending()  # Executa qualquer tarefa agendada
-#     time.sleep(1)  # Aguarda 1 segundo para checar novamente
+
+# Agende a tarefa para rodar a cada 1 minuto
+# schedule.every(1).minutes.do(loop)
+schedule.every(20).seconds.do(loop)
+
+# Inicie o agendamento em uma thread separada
+agendamento_thread = threading.Thread(target=rodar_agendamento)
+agendamento_thread.daemon = (
+    True  # Define como daemon para fechar quando o programa principal encerrar
+)
+agendamento_thread.start()
