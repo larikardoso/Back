@@ -4,7 +4,6 @@ from fastapi import FastAPI
 import smtplib
 import schedule
 from interfaces import BusRequest, StopTimeRequest, Cliente, Datas, DistanceMatrix
-from pydantic import BaseModel
 from typing import List
 import requests
 import mysql.connector

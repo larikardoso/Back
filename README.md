@@ -1,70 +1,54 @@
-# Getting Started with Create React App
+# WebApp de Mobilidade do Rio de Janeiro - Desafio MARAVI
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Baseado nos requisitos solicitados no Desafio Técnico
 
-## Available Scripts
+## Instruções de instalação
 
-In the project directory, you can run:
+Projeto descrito em Python 3.12.7. Abaixo, link com instruções de instalação:
 
-### `npm start`
+https://www.python.org/downloads/
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Banco de dados em MySQL 8.0.39. Abaixo, link com instruções de instalação:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+https://dev.mysql.com/downloads/installer/
 
-### `npm test`
+## Bibliotecas
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+`FastApi`
+`uvicorn`
+`celery`
+`pydantic`
+`requests`
+`redis`
+`typing`
+`googlemaps`
+`datetime`
+`schedule`
+`mysql-connector-python`
 
-### `npm run build`
+# Arquivos importantes
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+´main.py´: Arquivo principal do backend. Nele estão contidas os métodos para execução e conexão com a API de mobilidade e do Google Maps.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+´tasks.py´: Configura o celery para enfileirar o envio de e-mails.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+´bancodedados.py´: Cria o banco de dados localmente. Deve ser executado uma única vez após instalação do MySQL.
 
-### `npm run eject`
+´interfaces.py´: Organiza as funcionalidades que os outros arquivos herdam para validação de dados.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Configurações
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+O envio de e-mails de notificações de proximidado do ônibus deve ser configurado, fornecendo um endereço de remetente e senha válida, criando um arquivo `.env`. A autenticação via Gmail requer a configuração de uma "senha de aplicativos" nas configurações do seu provedor.
+Também é necessário a obtenção de uma chave de API do Google Maps.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Em `config.py`, altere as seguintes linhas com suas informações de remetente:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+`KEY_MAPS = "suaChaveApi"`
+`PASSWORD = "suaSenhaDeAplicativo"`
+`MY_EMAIL = "seuEmail@gmail.com"`
 
-## Learn More
+Para criar uma tabela no banco de dados deve-se executar o arquivo `bancodedados.py`.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Iniciar a aplicação
 
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Para obter acesso a API de mobilidade no backend, está setado a biblioteca `uvicorn`, executando o comando `uvicorn main:app --reload`
