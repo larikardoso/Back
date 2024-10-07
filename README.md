@@ -15,26 +15,36 @@ https://dev.mysql.com/downloads/installer/
 ## Bibliotecas
 
 `FastApi`
+
 `uvicorn`
+
 `celery`
+
 `pydantic`
+
 `requests`
+
 `redis`
+
 `typing`
+
 `googlemaps`
+
 `datetime`
+
 `schedule`
+
 `mysql-connector-python`
 
 # Arquivos importantes
 
-´main.py´: Arquivo principal do backend. Nele estão contidas os métodos para execução e conexão com a API de mobilidade e do Google Maps.
+`main.py`: Arquivo principal do backend. Nele estão contidas os métodos para execução e conexão com a API de mobilidade e do Google Maps.
 
-´tasks.py´: Configura o celery para enfileirar o envio de e-mails.
+`tasks.py`: Configura o celery para enfileirar o envio de e-mails.
 
-´bancodedados.py´: Cria o banco de dados localmente. Deve ser executado uma única vez após instalação do MySQL.
+`bancodedados.py`: Cria o banco de dados localmente. Deve ser executado uma única vez após instalação do MySQL.
 
-´interfaces.py´: Organiza as funcionalidades que os outros arquivos herdam para validação de dados.
+`interfaces.py`: Organiza as funcionalidades que os outros arquivos herdam para validação de dados.
 
 ## Configurações
 
